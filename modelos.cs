@@ -9,7 +9,7 @@ public class Usuario{
     public string telefono { get; set; }
     public required string tipo_usuario { get; set; }
     public string sessionToken { get; set; }
-
+    
 }
 public class usuarioLogin{
     public required string email { get; set; } 

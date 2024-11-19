@@ -103,3 +103,4 @@ C:\Users\tobi1\Documents\proyectos externos\gimnasio\obj\Debug\net8.0\refint\gim
 C:\Users\tobi1\Documents\proyectos externos\gimnasio\obj\Debug\net8.0\gimnasio.pdb
 C:\Users\tobi1\Documents\proyectos externos\gimnasio\obj\Debug\net8.0\gimnasio.genruntimeconfig.cache
 C:\Users\tobi1\Documents\proyectos externos\gimnasio\obj\Debug\net8.0\ref\gimnasio.dll
+C:\Users\tobi1\Documents\proyectos externos\gimnasio\obj\Debug\net8.0\gimnasio.sourcelink.json

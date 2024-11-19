@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 using System.Linq;
 
@@ -76,4 +77,36 @@ public class BicicletasController : ControllerBase
        // Retornar un mensaje de éxito
        return Ok(new { message = "Bicicleta eliminada" });
    }
+
+   // Método para obtener las bicicletas
+   [HttpGet("listar")]
+    public async Task<ActionResult<IEnumerable<Bicicletas>>> ListarBicicletas()
+    {
+        // Obtene todas las bicicletas de la base de datos
+        var bicicletas = await _context.Bicicletas.ToListAsync();
+
+        // Verfica si hay bicicletas registradas
+        if(bicicletas == null || !bicicletas.Any())
+        {
+            return NotFound("No se encontraron bicicletas");
+        }
+
+        // Retorna la lista de bicicletas
+        return Ok(bicicletas);
+    }
+
+    // Método para obtener una bicicleta por ID
+    [HttpGet("detalle/{id}")]
+    public async Task<ActionResult<Bicicletas>> ObtenerBicicleta(int id)
+    {
+        // Busca la bicicleta por un ID
+        var bicicleta = await _context.Bicicletas.FindAsync(id);
+
+        // Verifica si la bicicleta existe
+        if(bicicleta == null){
+            return NotFound("Bicicleta no encontrada");
+        }
+
+        return Ok(bicicleta);
+    }
 }

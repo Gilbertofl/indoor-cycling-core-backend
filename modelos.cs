@@ -29,7 +29,6 @@ public class Reservacion{
     public int id_bicicleta { get; set; }
 }
 
-
 //Bicicletas
 public class Bicicletas{
     public int id_bicicleta { get; set; }

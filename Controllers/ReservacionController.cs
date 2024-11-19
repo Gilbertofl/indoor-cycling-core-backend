@@ -15,54 +15,73 @@ public class ReservacionController : ControllerBase
     }
 
 [HttpPost("reservar")]
-public async Task<IActionResult> Reservar([FromBody] Reservacion nuevaReservacion)
+public async Task<IActionResult> Reservar([FromBody] Reservacion nuevaReservacion, [FromHeader] string sessionToken)
 {
-    // Verificar el tipo de usuario en el cuerpo de la solicitud
-    var usuario = await _context.Usuario.FindAsync(nuevaReservacion.id_cliente);
+    // Verificar si el token es válido
+    var usuarioToken = _context.Usuario.FirstOrDefault(u => u.sessionToken == sessionToken);
 
-    if (usuario == null)
+    if (usuarioToken == null || usuarioToken.tipo_usuario != "secretaria")
     {
-        return NotFound("Usuario no encontrado.");
+        return Forbid("Acceso no permitido. Solo la secretaria puede crear reservaciones.");
     }
 
-    // Verificar el tipo de usuario
-    if (usuario.tipo_usuario == "cliente")
-    {
-        // Si es un cliente, se ignora el id_cliente que viene en el cuerpo y se utiliza su propio ID
-        nuevaReservacion.id_cliente = usuario.id_usuario;
-        nuevaReservacion.nombre = usuario.nombre;
-        nuevaReservacion.apellidos = usuario.apellidos;
-        nuevaReservacion.email = usuario.email;
-    }
-    else if (usuario.tipo_usuario == "secretaria")
-    {
-        // Si es secretaria, se permite agregar el id_cliente manualmente
-        var cliente = _context.Usuario.Find(nuevaReservacion.id_cliente);
+    // Verificar si ya existe una reservación con la misma bicicleta y horario
+    var reservacionExistente = await _context.Reservaciones
+        .FirstOrDefaultAsync(r => r.id_horario == nuevaReservacion.id_horario && r.id_bicicleta == nuevaReservacion.id_bicicleta);
 
-        if (cliente == null)
-        {
-            return NotFound("Cliente no encontrado.");
-        }
-
-        nuevaReservacion.nombre = cliente.nombre;
-        nuevaReservacion.apellidos = cliente.apellidos;
-        nuevaReservacion.email = cliente.email;
-    }
-    else
+    if (reservacionExistente != null)
     {
-        return Forbid("Acceso no permitido.");
+        return Conflict(new { message = "La bicicleta ya está reservada para este horario." });
     }
 
-    // Guardar la reservación en la base de datos
+    // Verificar el cliente
+    var cliente = await _context.Usuario.FindAsync(nuevaReservacion.id_cliente);
+
+    if (cliente == null)
+    {
+        return NotFound("Cliente no encontrado.");
+    }
+
+    // Actualizar el estado de la bicicleta
+    var bicicleta = await _context.Bicicletas.FindAsync(nuevaReservacion.id_bicicleta);
+
+    if (bicicleta == null)
+    {
+        return NotFound("Bicicleta no encontrada.");
+    }
+
+    if (bicicleta.estado == "ocupada")
+    {
+        return Conflict(new { message = "La bicicleta ya está ocupada." });
+    }
+
+    bicicleta.estado = "ocupada"; // Marcar la bicicleta como ocupada
+
+    // Completar los datos de la reservación
+    nuevaReservacion.nombre = cliente.nombre;
+    nuevaReservacion.apellidos = cliente.apellidos;
+    nuevaReservacion.email = cliente.email;
+
+    // Guardar la reservación y actualizar el estado de la bicicleta
     _context.Reservaciones.Add(nuevaReservacion);
+    _context.Bicicletas.Update(bicicleta);
     await _context.SaveChangesAsync();
 
     return Ok(new { message = "Reservación realizada con éxito", nuevaReservacion });
 }
 
+
 [HttpPut("editar-reservacion/{id}")]
-public async Task<IActionResult> EditarReservacion(int id, [FromBody] Reservacion reservacionEditada)
-{
+public async Task<IActionResult> EditarReservacion(int id, [FromBody] Reservacion reservacionEditada, [FromHeader] string sessionToken)
+{   
+    // Validar el token se la sesion y el tipo de usuario
+    var usuarioToken = await _context.Usuario.FirstOrDefaultAsync(u => u.sessionToken == sessionToken);
+
+    if (usuarioToken == null || usuarioToken.tipo_usuario != "secretaria")
+    {
+        return Forbid("Acceso no permitido.");
+    }
+
     // Buscar la reservación por su ID
     var reservacion = await _context.Reservaciones.FindAsync(id);
 
@@ -71,20 +90,47 @@ public async Task<IActionResult> EditarReservacion(int id, [FromBody] Reservacio
         return NotFound("Reservación no encontrada.");
     }
     
-    // Dependiendo del tipo de usuario, se ajustan los datos permitidos
-    var usuario = await _context.Usuario.FindAsync(reservacion.id_cliente);
-
-    if (usuario != null && usuario.tipo_usuario == "secretaria")
+    // validacion de nuevos valores
+    if(reservacionEditada.id_horario != reservacion.id_horario)
     {
-        // Solo las secretarias pueden cambiar los datos del cliente si es necesario
-        reservacion.nombre = reservacionEditada.nombre;
-        reservacion.apellidos = reservacionEditada.apellidos;
-        reservacion.email = reservacionEditada.email;
-        reservacion.talla = reservacionEditada.talla;
-        // Actualizar los datos de la reservación
-        reservacion.id_horario = reservacionEditada.id_horario;
+        var horarioExiste = await _context.Horarios.AnyAsync(h => h.id_horario == reservacionEditada.id_horario);
+        if (!horarioExiste)
+        {
+            return BadRequest("El horario especifico no existe.");
+        }
+    }
+
+    if (reservacionEditada.id_bicicleta != reservacion.id_bicicleta)
+    {
+        // Marcar como "libre" la bicicleta anterior
+        var bicicletaAnterior = await _context.Bicicletas.FindAsync(reservacion.id_bicicleta);
+        if (bicicletaAnterior != null)
+        {
+            bicicletaAnterior.estado = "libre";
+        }
+
+        // Validar y marcar como "ocupada" la nueva bicicleta
+        var bicicletaNueva = await _context.Bicicletas.FindAsync(reservacionEditada.id_bicicleta);
+        if (bicicletaNueva == null)
+        {
+            return BadRequest("La bicicleta especificada no existe.");
+        }
+
+        if (bicicletaNueva.estado == "ocupada")
+        {
+            return Conflict(new { message = "La nueva bicicleta ya está ocupada." });
+        }
+
+        bicicletaNueva.estado = "ocupada";
         reservacion.id_bicicleta = reservacionEditada.id_bicicleta;
     }
+        // Actualizar los datos de la reservación
+        reservacion.nombre = reservacionEditada.nombre ?? reservacion.nombre;
+        reservacion.apellidos = reservacionEditada.apellidos ?? reservacion.apellidos;
+        reservacion.email = reservacionEditada.email ?? reservacion.email;
+        reservacion.talla = reservacionEditada.talla ?? reservacion.talla;
+        reservacion.id_horario = reservacionEditada.id_horario;
+    
 
     await _context.SaveChangesAsync();
 
@@ -102,12 +148,23 @@ public async Task<IActionResult> EliminarReservacion(int id)
         return NotFound("Reservación no encontrada.");
     }
 
+    // Actualizar el estado de la bicicleta a "disponible"
+    var bicicleta = await _context.Bicicletas.FindAsync(reservacion.id_bicicleta);
+
+    if (bicicleta != null)
+    {
+        bicicleta.estado = "libre";
+        _context.Bicicletas.Update(bicicleta);
+    }
+
     // Eliminar la reservación
     _context.Reservaciones.Remove(reservacion);
     await _context.SaveChangesAsync();
 
     return Ok(new { message = "Reservación eliminada con éxito" });
 }
+
+
 
 [HttpGet("historial")]
 public IActionResult ObtenerHistorialReservaciones(string tipo_usuario, int? id_cliente)

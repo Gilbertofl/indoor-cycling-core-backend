@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 using System.Linq;
 
@@ -118,4 +119,52 @@ public class UsuariosController : ControllerBase
         // Retornar un mensaje de éxito
         return Ok(new { message = "Usuario eliminado" });
     }
+
+    // Metodo para obtener los usuarios
+    [HttpGet("listar")]
+    public async Task<ActionResult<IEnumerable<Usuario>>> ListarUsuarios()
+    {
+        //obtene todos los horarios de la base de datos
+        var usuarios = await _context.Usuario.ToListAsync();
+
+        // verifica si hay perfiles registrados
+        if(usuarios == null || !usuarios.Any()){
+            return NotFound("No se encontraron usuarios");
+        }
+
+        // retorna la lista de horarios
+        return Ok(usuarios);
+    }
+
+    // Metodo para obtener el usuario por ID
+    [HttpGet("detalle/{id}")]
+    public async Task<ActionResult<Usuario>> ObtenerUsuario(int id)
+    {
+        // Busca el usuario por ID
+        var usuario = await _context.Usuario.FindAsync(id);
+
+        // verifica si el usuario existe
+        if(usuario == null){
+            return NotFound("Usuario no encontrado");
+        }
+
+        return Ok(usuario);
+    }
+
+    [HttpPost("logout")]
+    public IActionResult Logout([FromHeader] string sessionToken)
+    {
+        var usuario = _context.Usuario.FirstOrDefault(u => u.sessionToken == sessionToken);
+        if (usuario == null)
+        {
+            return Unauthorized("Token inválido.");
+        }
+
+        // Invalidar el token
+        usuario.sessionToken = null;
+        _context.SaveChanges();
+
+        return Ok(new { message = "Sesión cerrada correctamente." });
+    }
+    
 }

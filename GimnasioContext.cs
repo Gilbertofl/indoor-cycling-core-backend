@@ -37,7 +37,7 @@ public class GimnasioContext : DbContext
         // Configuración de la entidad Membresias
         modelBuilder.Entity<Membresias>()
             .HasKey(m => m.id_membresia); // Define la clave primaria
-        
+
         // Mapea cada entidad a su tabla correspondiente
         modelBuilder.Entity<Usuario>().ToTable("usuarios");
         modelBuilder.Entity<Bicicletas>().ToTable("bicicletas");

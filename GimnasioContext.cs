@@ -14,6 +14,7 @@ public class GimnasioContext : DbContext
     public DbSet<Reservacion> Reservaciones { get; set; }
     public DbSet<Horarios> Horarios { get; set; }
     public DbSet<Membresias> Membresias { get; set; }
+    public DbSet<HistorialReservaciones> HistorialReservaciones { get; set; }
 
     // Método para configurar el modelo de datos
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -38,11 +39,16 @@ public class GimnasioContext : DbContext
         modelBuilder.Entity<Membresias>()
             .HasKey(m => m.id_membresia); // Define la clave primaria
 
+        // Configuracion de la entidad HistoriaReservaciones
+        modelBuilder.Entity<HistorialReservaciones>()
+            .HasKey(f => f.id_historial); // Define la clave primaria
+
         // Mapea cada entidad a su tabla correspondiente
         modelBuilder.Entity<Usuario>().ToTable("usuarios");
         modelBuilder.Entity<Bicicletas>().ToTable("bicicletas");
         modelBuilder.Entity<Reservacion>().ToTable("reservaciones");
         modelBuilder.Entity<Horarios>().ToTable("horarios");
         modelBuilder.Entity<Membresias>().ToTable("membresias");
+        modelBuilder.Entity<HistorialReservaciones>().ToTable("historialreservaciones");
     }
 }

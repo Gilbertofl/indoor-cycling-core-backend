@@ -153,8 +153,10 @@ public class UsuariosController : ControllerBase
 
     [HttpPost("logout")]
     public IActionResult Logout([FromHeader] string sessionToken)
-    {
+    {   
+        // valida el token de sesion 
         var usuario = _context.Usuario.FirstOrDefault(u => u.sessionToken == sessionToken);
+
         if (usuario == null)
         {
             return Unauthorized("Token inválido.");

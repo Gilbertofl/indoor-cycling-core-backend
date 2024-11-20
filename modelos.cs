@@ -9,8 +9,8 @@ public class Usuario{
     public string telefono { get; set; }
     public required string tipo_usuario { get; set; }
     public string sessionToken { get; set; }
-    
 }
+
 public class usuarioLogin{
     public required string email { get; set; } 
     public required string password { get; set; }
@@ -29,12 +29,28 @@ public class Reservacion{
     public int id_bicicleta { get; set; }
 }
 
+// Historial
+public class HistorialReservaciones{
+    public int id_historial { get; set;}
+    public int id_reservacion { get; set; }
+    public int id_cliente { get; set; }
+    public int id_horario { get; set; }
+    public int id_bicicleta { get; set; }
+    public required string nombre { get; set; }
+    public required string apellidos { get; set; }
+    public required string talla { get; set; }
+    public required string email { get; set; }
+    public string estado { get; set; } = "finalizado";
+}
+
+
 //Bicicletas
 public class Bicicletas{
     public int id_bicicleta { get; set; }
     public required string nombre_bicicleta { get; set; }
     public required string estado { get; set; } 
 }
+
 public class bicicletaEdit{
     public required string nombre_bicicleta { get; set; }
     public required string estado { get; set; } 

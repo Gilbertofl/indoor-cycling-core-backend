@@ -1,6 +1,147 @@
 @gimnasio_HostAddress = http://localhost:5124
 
-GET {{gimnasio_HostAddress}}/weatherforecast/
-Accept: application/json
+### ==========================================================================
+### GUÍA DE PRUEBAS PASO A PASO - FLUJO COMPLETO DE OPERACIÓN DEL GIMNASIO
+### ==========================================================================
+### Este archivo permite probar todo el sistema de manera secuencial.
+### Con la base de datos recién iniciada, el sistema ya incluye:
+### - Secretaria: secretaria@gimnasio.com (Password: Secretaria123!)
+### - Cliente: cliente@gimnasio.com (Password: Cliente123!)
+### - 15 Bicicletas para spinning (Bicicleta #01 a #15)
+### - 8 Horarios de clases (07:00 a 20:00)
+### - Membresía activa vigente para el cliente
+### ==========================================================================
 
-###
+
+### --------------------------------------------------------------------------
+### PASO 1: INICIO DE SESIÓN
+### La secretaria inicia sesión con sus credenciales.
+### La variable @sessionToken guardará automáticamente el token devuelto.
+### --------------------------------------------------------------------------
+# @name loginSecretaria
+POST {{gimnasio_HostAddress}}/api/Usuarios/login
+Content-Type: application/json
+
+{
+  "email": "secretaria@gimnasio.com",
+  "password": "Secretaria123!"
+}
+
+### Guardar automáticamente el token obtenido para usarlo en los siguientes pasos:
+@sessionToken = {{loginSecretaria.response.body.sessionToken}}
+
+
+### --------------------------------------------------------------------------
+### PASO 2: CONSULTAR CATÁLOGO DE HORARIOS Y BICICLETAS DISPONIBLES
+### Revisamos qué horarios hay disponibles y qué bicicletas están libres.
+### --------------------------------------------------------------------------
+
+### 2.1 Ver todos los horarios de clases de spinning
+GET {{gimnasio_HostAddress}}/api/Horarios/listar
+
+### 2.2 Ver todas las bicicletas y si están disponibles para el turno 2 (08:00 AM)
+GET {{gimnasio_HostAddress}}/api/Bicicletas/listar?idHorario=2
+
+
+### --------------------------------------------------------------------------
+### PASO 3: VERIFICAR LA MEMBRESÍA DEL CLIENTE
+### Antes de apartar, comprobamos que el cliente #2 tenga su membresía al día.
+### --------------------------------------------------------------------------
+GET {{gimnasio_HostAddress}}/api/Membresias/cliente/2
+sessionToken: {{sessionToken}}
+
+
+### --------------------------------------------------------------------------
+### PASO 4: RESERVACIÓN EXITOSA
+### Apartamos la Bicicleta #01 en el Horario 2 (08:00 AM) para el Cliente 2.
+### --------------------------------------------------------------------------
+# @name crearReservacion
+POST {{gimnasio_HostAddress}}/api/Reservacion/reservar
+sessionToken: {{sessionToken}}
+Content-Type: application/json
+
+{
+  "id_cliente": 2,
+  "id_horario": 2,
+  "id_bicicleta": 1,
+  "talla": "M"
+}
+
+
+### --------------------------------------------------------------------------
+### PASO 5: DEMOSTRACIÓN DE PROTECCIÓN CONTRA DOBLE RESERVA (CONFLICTO 409)
+### Intentamos apartar exactamente la misma Bicicleta #01 en el mismo Horario 2.
+### El sistema debe rechazar la solicitud avisando que ya está ocupada.
+### --------------------------------------------------------------------------
+POST {{gimnasio_HostAddress}}/api/Reservacion/reservar
+sessionToken: {{sessionToken}}
+Content-Type: application/json
+
+{
+  "id_cliente": 2,
+  "id_horario": 2,
+  "id_bicicleta": 1,
+  "talla": "L"
+}
+
+
+### --------------------------------------------------------------------------
+### PASO 6: CONSULTAR HISTORIAL Y RESERVACIONES ACTIVAS
+### Verificamos que la reserva aparezca en la lista de reservaciones activas.
+### --------------------------------------------------------------------------
+GET {{gimnasio_HostAddress}}/api/Reservacion/historial
+sessionToken: {{sessionToken}}
+
+
+### --------------------------------------------------------------------------
+### PASO 7: CONCLUIR LA CLASE Y TRASLADAR AL HISTORIAL
+### Al finalizar el turno, la secretaria mueve la reserva al historial de completadas.
+### --------------------------------------------------------------------------
+POST {{gimnasio_HostAddress}}/api/Reservacion/mover-a-historial/1
+sessionToken: {{sessionToken}}
+
+
+### --------------------------------------------------------------------------
+### PASO 8: COMPROBAR LIBERACIÓN DE LA BICICLETA
+### Verificamos que en el historial ahora aparezca la reserva como 'finalizado'.
+### --------------------------------------------------------------------------
+GET {{gimnasio_HostAddress}}/api/Reservacion/historial
+sessionToken: {{sessionToken}}
+
+
+### ==========================================================================
+### PRUEBAS ADICIONALES DE ADMINISTRACIÓN (OPCIONALES)
+### ==========================================================================
+
+### Crear una nueva bicicleta
+POST {{gimnasio_HostAddress}}/api/Bicicletas/agregar
+sessionToken: {{sessionToken}}
+Content-Type: application/json
+
+{
+  "nombre_bicicleta": "Bicicleta #16 (Nueva)",
+  "estado": "libre"
+}
+
+### Crear un nuevo horario (ejemplo: turno nocturno 21:00)
+POST {{gimnasio_HostAddress}}/api/Horarios/agregar
+sessionToken: {{sessionToken}}
+Content-Type: application/json
+
+{
+  "hora_inicio": "21:00"
+}
+
+### Renovar o crear una membresía nueva de 3 meses para el cliente
+POST {{gimnasio_HostAddress}}/api/Membresias/registrar
+sessionToken: {{sessionToken}}
+Content-Type: application/json
+
+{
+  "id_cliente": 2,
+  "meses_duracion": 3
+}
+
+### Cerrar sesión
+POST {{gimnasio_HostAddress}}/api/Usuarios/logout
+sessionToken: {{sessionToken}}
